@@ -188,7 +188,7 @@ class AccountMoveLine(models.Model):
         date = self.move_id.date or fields.Date.today()
         to_currency = self.env["res.currency"].browse(currency_id)
         total_in_currency = self.currency_id._convert(
-            self.price_subtotal, to_currency, self.move_id.company_id, date
+            self.price_total, to_currency, self.move_id.company_id, date
         )
         return total_in_currency
 

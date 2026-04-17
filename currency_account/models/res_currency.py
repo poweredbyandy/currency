@@ -39,7 +39,14 @@ class ResCurrency(models.Model):
         if model == "account.move":
             return self._available_fields_depends_on_account_move()
         if model == "account.move.line":
-            return ["price_unit", "quantity", "discount"]
+            return [
+                "price_unit",
+                "quantity",
+                "discount",
+                "price_subtotal",
+                "price_total",
+                "tax_ids",
+            ]
         return []
 
     def _prepare_currency_amount_field(self, model, field_name):

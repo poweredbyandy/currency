@@ -6,6 +6,4 @@ class Base(models.AbstractModel):
 
     @api.model
     def _compute_subtotal_currency_field(self, currency_id):
-        if hasattr(self, "_compute_currency_field"):
-            return self._compute_currency_field(currency_id)
         return 0.0
