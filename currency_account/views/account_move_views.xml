@@ -31,6 +31,18 @@
                     column_invisible="not parent.lines_with_rate_difference"/>
                 <field name="currency_rate" string="Tasa de Cambio" optional="hide" readonly="0" digits="[16,16]"/>
             </xpath>
+            <xpath
+                expr="//group[hasclass('oe_invoice_lines_tab', 'overflow-hidden')]/group[field[@name='narration']]"
+                position="attributes"
+            >
+                <attribute name="colspan">6</attribute>
+            </xpath>
+            <xpath
+                expr="//group[hasclass('oe_invoice_lines_tab', 'overflow-hidden')]/group[.//field[@name='tax_totals']]"
+                position="attributes"
+            >
+                <attribute name="colspan">6</attribute>
+            </xpath>
         </field>
     </record>
 

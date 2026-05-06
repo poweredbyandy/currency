@@ -11,66 +11,46 @@ patch(ProductProduct.prototype, {
      * @returns {number} - The converted amount
      */
     convertCurrency(amount, fromCurrency, toCurrency) {
-        console.log('convertCurrency called with:', amount, fromCurrency?.name, toCurrency?.name);
-
-        // Validate inputs
         if (!amount || isNaN(amount) || !fromCurrency || !toCurrency) {
-            console.log('Invalid inputs, returning original amount');
             return amount || 0;
         }
 
         if (fromCurrency.id === toCurrency.id) {
-            console.log('Same currency, returning original amount');
             return amount;
         }
 
         try {
-            // Get currency rates from the models
             const currencyRates = this.models["res.currency.rate"]?.readAll() || [];
-            console.log('Available currency rates:', currencyRates);
 
-            // Get company currency (base currency)
             const company = this.models['res.company']?.getFirst();
             const companyCurrency = company?.currency_id;
-            console.log('Company currency:', companyCurrency?.name);
 
             if (!companyCurrency) {
-                console.log('No company currency, returning original');
-                return amount; // No company currency, return original
+                return amount;
             }
 
-            // If converting to company currency, use inverse of from rate
             if (toCurrency.id === companyCurrency.id) {
-                console.log('Converting TO company currency');
                 const fromRate = currencyRates.find(rate => {
                     const currencyId = Array.isArray(rate.currency_id) ? rate.currency_id[0] : (rate.currency_id?.id || rate.currency_id);
                     return currencyId === fromCurrency.id;
                 });
-                console.log('Found fromRate:', fromRate);
 
                 if (fromRate) {
                     const rateValue = fromRate.inverse_rate || (1 / fromRate.rate) || 1;
-                    console.log('Using rate value for TO company:', rateValue);
                     const result = amount * rateValue;
-                    console.log('Result:', result);
                     return result;
                 }
             }
 
-            // If converting from company currency, use direct rate
             if (fromCurrency.id === companyCurrency.id) {
-                console.log('Converting FROM company currency');
                 const toRate = currencyRates.find(rate => {
                     const currencyId = Array.isArray(rate.currency_id) ? rate.currency_id[0] : (rate.currency_id?.id || rate.currency_id);
                     return currencyId === toCurrency.id;
                 });
-                console.log('Found toRate:', toRate);
 
                 if (toRate) {
                     const rateValue = toRate.inverse_rate || (1 / toRate.rate) || 1;
-                    console.log('Using rate value for FROM company:', rateValue);
                     const result = amount / rateValue;
-                    console.log('Result:', result);
                     return result;
                 }
             }

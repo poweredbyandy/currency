@@ -8,15 +8,10 @@ patch(ProductCard.prototype, {
         }
 
         try {
-            // Get the current pricelist from the POS
-            const currentOrder = this.env.services.pos.get_order();
-            const pricelist = currentOrder?.pricelist_id;
-            console.log('ProductCard: Current pricelist:', pricelist?.name, 'ID:', pricelist?.id);
-
-            // Calculate the price using the extended get_price method
+            const pos = this.env.services.pos;
+            const currentOrder = pos.get_order();
+            const pricelist = currentOrder?.pricelist_id || pos.config?.pricelist_id;
             const price = this.props.product.get_price(pricelist, 1);
-
-            // Format the price using Odoo utils
             return this.env.utils.formatCurrency(price);
         } catch (error) {
             console.warn("Error calculating product price:", error);
@@ -33,9 +28,9 @@ patch(ProductCard.prototype, {
             const prices = [];
             const posCurrency = this.env.services.pos.currency;
 
-            // Get current order and pricelist
-            const currentOrder = this.env.services.pos.get_order();
-            const currentPricelist = currentOrder?.pricelist_id;
+            const pos = this.env.services.pos;
+            const currentOrder = pos.get_order();
+            const currentPricelist = currentOrder?.pricelist_id || pos.config?.pricelist_id;
 
             // Get all currencies except the POS currency
             const currencies = this.env.services.pos.models["res.currency"].readAll()
