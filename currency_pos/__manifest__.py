@@ -1,7 +1,7 @@
 {
     "name": "Currency POS",
     "icon": "/poweredbyandy_saas/static/description/icon.png",
-    "version": "18.0.1.0.0",
+    "version": "18.0.2.1.0",
     "category": "Point of Sale",
     "sequence": 10,
     "summary": "Currency conversion for products in Point of Sale",
@@ -13,15 +13,20 @@
         "point_of_sale",
         "l10n_ve_product_currency",
     ],
-    "data": [],
+    "data": [
+        "views/pos_payment_method_views.xml",
+        "views/pos_order_views.xml",
+    ],
     "assets": {
         "point_of_sale._assets_pos": [
+            "currency_pos/static/src/utils/currency_utils.js",
             "currency_pos/static/src/app/generic_components/currency_rates_widget/currency_rates_widget.xml",
             "currency_pos/static/src/app/generic_components/currency_rates_widget/currency_rates_widget.js",
             "currency_pos/static/src/app/screens/product_screen/product_screen.js",
             "currency_pos/static/src/app/screens/product_screen/product_screen.xml",
             "currency_pos/static/src/overrides/store/pos_store.js",
             "currency_pos/static/src/overrides/models/pos_order.js",
+            "currency_pos/static/src/overrides/models/pos_payment.js",
             "currency_pos/static/src/overrides/models/product_product.js",
             "currency_pos/static/src/overrides/components/orderline/orderline.js",
             "currency_pos/static/src/overrides/components/orderline/orderline.xml",

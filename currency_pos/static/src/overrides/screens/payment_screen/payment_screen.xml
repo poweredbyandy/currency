@@ -2,7 +2,6 @@
 <templates id="template" xml:space="preserve">
     <t t-inherit="point_of_sale.PaymentScreenButtons" t-inherit-mode="extension">
         <xpath expr="//button[@class='button js_invoice btn btn-light btn-lg d-flex justify-content-between align-items-baseline w-100 w-md-50 lh-lg']" position="before">
-            <!-- Currency selection button -->
             <button class="button currency-button btn btn-light btn-lg w-100 w-md-50 lh-lg"
                     t-on-click="clickExchangeCurrency"
                     title="Seleccionar moneda de cambio">
@@ -20,6 +19,61 @@
                 <span class="text-info fw-bold" style="font-size: 1.1em;">
                     <t t-esc="getConvertedTotalDue()"/>
                 </span>
+            </t>
+        </xpath>
+    </t>
+
+    <t t-inherit="point_of_sale.PaymentScreenPaymentLines" t-inherit-mode="extension">
+        <xpath expr="//span[hasclass('payment-name')]/t[@t-esc='line.payment_method_id.name']" position="replace">
+            <t t-esc="line.payment_method_id and line.payment_method_id.name or ''"/>
+        </xpath>
+        <xpath expr="//t[@t-esc='line.payment_method_id.name']" position="replace">
+            <t t-esc="line.payment_method_id and line.payment_method_id.name or ''"/>
+        </xpath>
+        <xpath expr="//div[hasclass('payment-amount')]/t[@t-esc='env.utils.formatCurrency(line.get_amount())']" position="replace">
+            <t t-if="line.getPaymentCurrency and line.getPaymentCurrency()"
+               t-esc="(line.getPaymentAmountCurrency ? line.getPaymentAmountCurrency() : line.get_amount()) + ' ' + (line.getPaymentCurrency().symbol || line.getPaymentCurrency().name)"/>
+            <t t-else="" t-esc="env.utils.formatCurrency(line.get_amount())"/>
+        </xpath>
+        <xpath expr="//div[hasclass('payment-infos') and hasclass('fs-2')]/div[hasclass('payment-amount')]" position="after">
+            <t t-if="line.getPaymentCurrency and line.getPaymentCurrency()">
+                <div class="small text-muted px-3 pb-2">
+                    @ <t t-esc="line.getPaymentRate ? line.getPaymentRate().toFixed(4) : '1.0000'"/>
+                    =
+                    <t t-esc="env.utils.formatCurrency(line.get_amount())"/>
+                </div>
+            </t>
+        </xpath>
+    </t>
+
+    <t t-inherit="point_of_sale.ClosePosPopup" t-inherit-mode="extension">
+        <xpath expr="//div[@t-if='props.default_cash_details.payment_amount' and hasclass('d-flex') and hasclass('align-items-center') and hasclass('justify-content-between') and hasclass('text-muted') and hasclass('border-start') and hasclass('ps-2')]" position="after">
+            <t t-if="props.default_cash_details.amount_currency_name">
+                <div class="d-flex align-items-center justify-content-between text-muted border-start ps-2">
+                    <span>
+                        Monto en
+                        <t t-esc="props.default_cash_details.amount_currency_name"/>
+                    </span>
+                    <span>
+                        <t t-esc="props.default_cash_details.amount_currency_display"/>
+                        <t t-esc="props.default_cash_details.amount_currency_symbol or props.default_cash_details.amount_currency_name"/>
+                    </span>
+                </div>
+            </t>
+        </xpath>
+
+        <xpath expr="//div[@class='w-100 mb-3' and @t-foreach='props.non_cash_payment_methods']/div[@class='d-flex align-items-center justify-content-between fs-3']" position="after">
+            <t t-if="pm.amount_currency_name">
+                <div class="d-flex align-items-center justify-content-between text-muted border-start ps-2">
+                    <span>
+                        Monto en
+                        <t t-esc="pm.amount_currency_name"/>
+                    </span>
+                    <span>
+                        <t t-esc="pm.amount_currency_display"/>
+                        <t t-esc="pm.amount_currency_symbol or pm.amount_currency_name"/>
+                    </span>
+                </div>
             </t>
         </xpath>
     </t>

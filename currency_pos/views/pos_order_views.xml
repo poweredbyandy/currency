@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_pos_pos_form_currency_pos" model="ir.ui.view">
+        <field name="name">pos.order.form.currency.pos</field>
+        <field name="model">pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_pos_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='payments']//field[@name='payment_ids']/list/field[@name='amount']" position="after">
+                <field name="currency_pos_payment_currency_id" optional="show"/>
+                <field name="currency_pos_payment_amount_currency" widget="monetary" options="{'currency_field': 'currency_pos_payment_currency_id'}" optional="show"/>
+                <field name="currency_pos_payment_rate" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
