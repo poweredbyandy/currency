@@ -59,6 +59,8 @@ class PurchaseOrder(models.Model):
                 }
             order.total_currencies = json.dumps(totals) if totals else False
 
+    @api.depends_context("lang")
+    @api.depends("order_line.price_subtotal", "currency_id", "company_id")
     def _compute_tax_totals(self):
         super()._compute_tax_totals()
         for order in self:
