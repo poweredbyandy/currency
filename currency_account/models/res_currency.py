@@ -11,7 +11,28 @@ class ResCurrency(models.Model):
             f"x_amount_currency_{self.id}",
             f"x_subtotal_currency_{self.id}",
             f"x_price_unit_currency_{self.id}",
+            f"x_cost_currency_{self.id}",
         ]
+
+    def _available_product_template_currency_models(self):
+        return ["product.model_product_template"]
+
+    def _available_fields_depends_on_product_template(self):
+        return ["standard_price", "company_id"]
+
+    def _prepare_product_cost_currency_field(self, model, field_name):
+        model_record = self.env.ref(model)
+        return {
+            "name": field_name,
+            "field_description": f"Costo (tasa compra) {self.name}",
+            "model_id": model_record.id,
+            "ttype": "monetary",
+            "store": True,
+            "depends": ", ".join(self._available_fields_depends_on_product_template()),
+            "compute": f"""for record in self:
+    record['{field_name}'] = record._compute_product_cost_currency_field({self.id})
+            """,
+        }
 
     def _available_models(self):
         return ["account.model_account_move_line", "account.model_account_move"]
@@ -202,6 +223,30 @@ class ResCurrency(models.Model):
             self.env["ir.model.fields"].create(currency_field_vals)
             self.env["ir.model.fields"].create(currency_amount_field_vals)
             self.env["ir.model.fields"].create(currency_subtotal_field_vals)
+
+        product_cost_field_name = f"x_cost_currency_{self.id}"
+        product_field_subset = [
+            f"x_currency_id_{self.id}",
+            product_cost_field_name,
+        ]
+        for model in self._available_product_template_currency_models():
+            field_model.sudo().search(
+                [
+                    ("name", "in", product_field_subset),
+                    ("model_id", "=", self.env.ref(model).id),
+                ]
+            ).unlink()
+
+            currency_field_vals = self._prepare_currency_field(
+                model, currency_field_name
+            )
+            cost_field_vals = self._prepare_product_cost_currency_field(
+                model, product_cost_field_name
+            )
+            cost_field_vals["currency_field"] = currency_field_vals["name"]
+
+            self.env["ir.model.fields"].create(currency_field_vals)
+            self.env["ir.model.fields"].create(cost_field_vals)
 
     def action_delete_fields(self):
         self.ensure_one()

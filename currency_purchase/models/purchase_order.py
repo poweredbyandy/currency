@@ -8,11 +8,33 @@ from odoo import api, fields, models
 class PurchaseOrder(models.Model):
     _inherit = "purchase.order"
 
+    currency_rate = fields.Float(digits=(16, 12))
+    currency_inverse_rate = fields.Float(
+        string="Tasa inversa",
+        digits=(16, 12),
+        compute="_compute_currency_inverse_rate",
+    )
+
     total_currencies = fields.Json(
         string="Totales por Moneda",
         compute="_compute_total_currencies",
         store=True,
     )
+
+    @api.depends(
+        "currency_id",
+        "company_id",
+        "company_id.currency_id",
+        "currency_rate",
+    )
+    def _compute_currency_inverse_rate(self):
+        for order in self:
+            if not order.currency_id or order.currency_id == order.company_id.currency_id:
+                order.currency_inverse_rate = 1.0
+            elif not order.currency_rate:
+                order.currency_inverse_rate = 0.0
+            else:
+                order.currency_inverse_rate = 1.0 / order.currency_rate
 
     @api.depends(
         "currency_id",

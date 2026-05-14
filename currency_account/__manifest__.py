@@ -6,8 +6,9 @@
     "summary": "Multimoneda",
     "author": "Andyengit,Odoo Community Association (OCA)",
     "website": "https://github.com/OCA/l10n-venezuela",
-    "depends": ["account"],
+    "depends": ["account", "product"],
     "data": [
+        "security/currency_account_security.xml",
         "views/account_move_views.xml",
         "views/res_currency_views.xml"
     ],

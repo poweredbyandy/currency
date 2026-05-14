@@ -4,6 +4,13 @@
         <field name="model">purchase.order</field>
         <field name="inherit_id" ref="purchase.purchase_order_form" />
         <field name="arch" type="xml">
+            <xpath expr="//sheet/group/group[1]/field[@name='currency_id'][@force_save='1']" position="after">
+                <field
+                    name="currency_inverse_rate"
+                    readonly="1"
+                    digits="[16, 12]"
+                />
+            </xpath>
             <xpath expr="//field[@name='tax_totals']" position="attributes">
                 <attribute name="widget">tax_totals_company_currency_widget</attribute>
             </xpath>

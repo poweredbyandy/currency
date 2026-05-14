@@ -10,7 +10,7 @@ from odoo import fields, models
 
 _logger = logging.getLogger(__name__)
 
-TIMEOUT = 5000
+REQUEST_TIMEOUT = (10, 60)
 CURRENCIES = {
     "EUR": "euro",
     "CNY": "yuan",
@@ -40,13 +40,34 @@ class ResCurrencyRateProvider(models.Model):
         if self.service != "bcv":
             return super()._obtain_rates(base_currency, currencies, date_from, date_to)
 
+        _logger.info(
+            "BCV proveedor id=%s: solicitud tasas base=%s monedas=%s desde=%s hasta=%s",
+            self.id,
+            base_currency,
+            currencies,
+            date_from,
+            date_to,
+        )
+
         content = defaultdict(dict)
 
         bcv_data = self._scrap(currencies)
 
+        if not bcv_data:
+            _logger.warning(
+                "BCV proveedor id=%s: no se obtuvo ninguna tasa (revisar red, HTML del BCV o xpath)",
+                self.id,
+            )
+
         for k, v in bcv_data.items():
             dt = v[1].isoformat()
             content[dt][k] = v[0]
+
+        _logger.info(
+            "BCV proveedor id=%s: respuesta con %s fecha(s) de cotización",
+            self.id,
+            len(content),
+        )
 
         return content
 
@@ -54,15 +75,43 @@ class ResCurrencyRateProvider(models.Model):
         request_url = "http://www.bcv.org.ve/"
 
         rslt = {}
+        _logger.info(
+            "BCV: GET %s timeout=%s",
+            request_url,
+            REQUEST_TIMEOUT,
+        )
         try:
-            fetched_data = requests.get(request_url, verify=False, timeout=TIMEOUT)
-        except Exception as e:
-            _logger.debug("%s, %s", self._name, e)
+            fetched_data = requests.get(
+                request_url, verify=False, timeout=REQUEST_TIMEOUT
+            )
+        except Exception:
+            _logger.exception(
+                "BCV proveedor id=%s: fallo de red o timeout al contactar %s",
+                self.id,
+                request_url,
+            )
+            return rslt
+
+        if fetched_data.status_code != 200:
+            _logger.warning(
+                "BCV proveedor id=%s: HTTP %s al obtener %s",
+                self.id,
+                fetched_data.status_code,
+                request_url,
+            )
             return rslt
 
         available_currency_names = available_currencies
 
-        htmlelem = etree.fromstring(fetched_data.content, etree.HTMLParser())
+        try:
+            htmlelem = etree.fromstring(fetched_data.content, etree.HTMLParser())
+        except Exception:
+            _logger.exception(
+                "BCV proveedor id=%s: no se pudo parsear HTML (tamaño body=%s)",
+                self.id,
+                len(fetched_data.content or b""),
+            )
+            return rslt
 
         dt = datetime.now(CARACAS_TZ)
         for currency_name in available_currency_names:
@@ -76,7 +125,18 @@ class ResCurrencyRateProvider(models.Model):
                     value = float(sValue.replace(" ", "").replace(",", "."))
 
                     rslt[currency_name] = (1.0 / value, dt)
-            except Exception as e:
-                _logger.debug("%s, %s", self._name, e)
+            except Exception as err:
+                _logger.warning(
+                    "BCV proveedor id=%s: no se pudo leer la tasa para %s: %s",
+                    self.id,
+                    currency_name,
+                    err,
+                )
+
+        _logger.info(
+            "BCV proveedor id=%s: scraping OK para monedas %s",
+            self.id,
+            list(rslt.keys()),
+        )
 
         return rslt
