@@ -8,7 +8,6 @@ from odoo import api, fields, models
 class PurchaseOrder(models.Model):
     _inherit = "purchase.order"
 
-    currency_rate = fields.Float(digits=(16, 12))
     currency_inverse_rate = fields.Float(
         string="Tasa inversa",
         digits=(16, 12),
