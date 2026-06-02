@@ -1,7 +1,7 @@
 {
     "name": "Multicurrency",
     "icon": "/poweredbyandy_saas/static/description/icon.png",
-    "version": "18.0.1.0.0",
+    "version": "18.0.1.0.1",
     "category": "Extra Tools",
     "summary": "Multimoneda",
     "author": "Andyengit,Odoo Community Association (OCA)",
@@ -15,6 +15,7 @@
     "license": "LGPL-3",
     "installable": True,
     "auto_install": False,
+    "post_init_hook": "post_init_hook",
     "assets": {
         "web.assets_backend": [
             "currency_account/static/src/**/*",

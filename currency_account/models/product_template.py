@@ -6,26 +6,14 @@ from odoo import api, models
 class ProductTemplate(models.Model):
     _inherit = "product.template"
 
-    _MULTICURRENCY_COST_PREFIX = "x_cost_currency_"
-
-    def _multicurrency_cost_user_allowed(self):
-        return self.env.su or self.env.user.has_group(
-            "currency_account.group_product_multicurrency_cost"
-        )
-
     def read(self, fields=None, load="_classic_read"):
         res = super().read(fields=fields, load=load)
-        if self._multicurrency_cost_user_allowed():
-            return res
-        pfx = self._MULTICURRENCY_COST_PREFIX
-        for row in res:
-            for k in list(row.keys()):
-                if k.startswith(pfx):
-                    del row[k]
-        return res
+        return self._currency_account_filter_read_rows(res)
 
     @api.model
-    def search_read(self, domain=None, fields=None, offset=0, limit=None, order=None, **read_kwargs):
+    def search_read(
+        self, domain=None, fields=None, offset=0, limit=None, order=None, **read_kwargs
+    ):
         res = super().search_read(
             domain,
             fields,
@@ -34,14 +22,7 @@ class ProductTemplate(models.Model):
             order=order,
             **read_kwargs,
         )
-        if self._multicurrency_cost_user_allowed():
-            return res
-        pfx = self._MULTICURRENCY_COST_PREFIX
-        for row in res:
-            for k in list(row.keys()):
-                if k.startswith(pfx):
-                    del row[k]
-        return res
+        return self._currency_account_filter_read_rows(res)
 
     def _compute_product_cost_currency_field(self, currency_id):
         self.ensure_one()
@@ -75,7 +56,6 @@ class ProductTemplate(models.Model):
         return arch, view
 
     def _inject_product_cost_currency_fields(self, arch):
-        group_xml = "currency_account.group_product_multicurrency_cost"
         amount_fields = self.env["ir.model.fields"].sudo().search(
             [
                 ("model", "=", self._name),
@@ -92,17 +72,19 @@ class ProductTemplate(models.Model):
         idx = list(parent).index(ref_node)
         offset = 0
         for af in amount_fields:
+            currency_id = af.name.rsplit("_", 1)[-1]
+            group_xmlid = self._currency_account_group_xmlid(currency_id)
             if af.currency_field:
                 currency_el = etree.Element("field")
                 currency_el.set("name", af.currency_field)
                 currency_el.set("column_invisible", "True")
-                currency_el.set("groups", group_xml)
+                currency_el.set("groups", group_xmlid)
                 parent.insert(idx + 1 + offset, currency_el)
                 offset += 1
             field_el = etree.Element("field")
             field_el.set("name", af.name)
             field_el.set("optional", "show")
             field_el.set("readonly", "1")
-            field_el.set("groups", group_xml)
+            field_el.set("groups", group_xmlid)
             parent.insert(idx + 1 + offset, field_el)
             offset += 1

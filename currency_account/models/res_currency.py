@@ -4,6 +4,57 @@ from odoo import api, models
 class ResCurrency(models.Model):
     _inherit = "res.currency"
 
+    def _currency_group_xmlid_name(self):
+        self.ensure_one()
+        return f"group_currency_{self.id}"
+
+    def _currency_group_xmlid(self):
+        self.ensure_one()
+        return f"currency_account.{self._currency_group_xmlid_name()}"
+
+    def _ensure_currency_group(self):
+        self.ensure_one()
+        imd = self.env["ir.model.data"].sudo()
+        existing = imd.search(
+            [
+                ("module", "=", "currency_account"),
+                ("name", "=", self._currency_group_xmlid_name()),
+            ],
+            limit=1,
+        )
+        if existing:
+            return self.env["res.groups"].browse(existing.res_id)
+        category = self.env.ref(
+            "currency_account.module_category_currency_account",
+            raise_if_not_found=False,
+        )
+        group = self.env["res.groups"].sudo().create(
+            {
+                "name": f"Ver multimoneda: {self.display_name}",
+                "category_id": category.id if category else False,
+            }
+        )
+        imd.create(
+            {
+                "module": "currency_account",
+                "name": self._currency_group_xmlid_name(),
+                "model": "res.groups",
+                "res_id": group.id,
+                "noupdate": True,
+            }
+        )
+        return group
+
+    @api.model
+    def _sync_currency_groups_for_existing_fields(self):
+        field_model = self.env["ir.model.fields"].sudo()
+        for currency in self.search([]):
+            if field_model.search_count(
+                [("name", "in", currency._dynamic_currency_field_names())],
+                limit=1,
+            ):
+                currency._ensure_currency_group()
+
     def _dynamic_currency_field_names(self):
         self.ensure_one()
         return [
@@ -156,6 +207,7 @@ class ResCurrency(models.Model):
 
     def action_create_fields(self):
         self.ensure_one()
+        self._ensure_currency_group()
         field_model = self.env["ir.model.fields"]
         currency_field_name = f"x_currency_id_{self.id}"
         currency_amount_field_name = f"x_amount_currency_{self.id}"

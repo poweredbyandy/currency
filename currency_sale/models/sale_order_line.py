@@ -6,6 +6,24 @@ from odoo import api, fields, models
 class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"
 
+    def read(self, fields=None, load="_classic_read"):
+        res = super().read(fields=fields, load=load)
+        return self._currency_account_filter_read_rows(res)
+
+    @api.model
+    def search_read(
+        self, domain=None, fields=None, offset=0, limit=None, order=None, **read_kwargs
+    ):
+        res = super().search_read(
+            domain,
+            fields,
+            offset=offset,
+            limit=limit,
+            order=order,
+            **read_kwargs,
+        )
+        return self._currency_account_filter_read_rows(res)
+
     @api.model
     def _compute_currency_field(self, currency_id):
         date = self.order_id.date_order or fields.Date.today()
@@ -54,14 +72,18 @@ class SaleOrderLine(models.Model):
         idx = list(parent).index(ref_node)
         offset = 0
         for af in amount_fields:
+            currency_id = af.name.rsplit('_', 1)[-1]
+            group_xmlid = self._currency_account_group_xmlid(currency_id)
             if af.currency_field:
                 currency_el = etree.Element('field')
                 currency_el.set('name', af.currency_field)
                 currency_el.set('column_invisible', 'True')
+                currency_el.set('groups', group_xmlid)
                 parent.insert(idx + 1 + offset, currency_el)
                 offset += 1
             field_el = etree.Element('field')
             field_el.set('name', af.name)
             field_el.set('optional', 'show')
+            field_el.set('groups', group_xmlid)
             parent.insert(idx + 1 + offset, field_el)
             offset += 1
