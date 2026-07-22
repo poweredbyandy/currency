@@ -1,6 +1,6 @@
-import { Component, xml } from "@odoo/owl";
-import { formatMonetary } from "@web/views/fields/formatters";
+import { Component } from "@odoo/owl";
 import { usePos } from "@point_of_sale/app/store/pos_hook";
+import { formatMajorExchangeRateLabel } from "@currency_pos/app/utils/payment_currency_utils";
 
 export class CurrencyRatesWidget extends Component {
     static template = "currency_pos.CurrencyRatesWidget";
@@ -9,39 +9,35 @@ export class CurrencyRatesWidget extends Component {
     setup() {
         super.setup();
         this.pos = usePos();
-        this.formatMonetary = formatMonetary;
-    }
-
-    mounted() {
     }
 
     get rates() {
         const rates = [];
-
-        if (!this.pos || !this.pos.models) {
+        if (!this.pos?.models) {
             return rates;
         }
 
         const currencyModel = this.pos.models["res.currency"];
-
-        if (!currencyModel) {
+        const companyCurrency = this.companyCurrency;
+        if (!currencyModel || !companyCurrency) {
             return rates;
         }
 
-        const companyCurrencyId = this.pos.company?.currency_id?.id;
-
         currencyModel.forEach((currency) => {
-            if (currency.id === companyCurrencyId) {
+            if (currency.id === companyCurrency.id) {
                 return;
             }
-
-            // Usar inverse_rate para la conversión (1 unidad de la moneda base = inverse_rate unidades de esta moneda)
-            const rate = currency.inverse_rate || currency.rate || 1;
-
+            const label = formatMajorExchangeRateLabel(
+                companyCurrency,
+                currency,
+                this.pos.models
+            );
+            if (!label) {
+                return;
+            }
             rates.push({
-                currency: currency,
-                rate: rate,
-                date: null,
+                currency,
+                label,
             });
         });
 

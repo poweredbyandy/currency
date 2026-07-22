@@ -165,7 +165,27 @@ describe("currency_pos utils", () => {
         const ves = { id: 3, decimal_places: 2, rate: 500, inverse_rate: 1 / 500, symbol: "VES" };
         const models = buildModels({ currencies: [usd, eur, ves] });
         expect(formatOrderCurrencyRateLabel(usd, ves, models)).toBe("1$ = 500.00 VES");
-        expect(formatOrderCurrencyRateLabel(usd, eur, models)).toBe("1$ = 0.96 €");
+        expect(formatOrderCurrencyRateLabel(usd, eur, models)).toBe("1€ = 1.04 $");
+        expect(formatOrderCurrencyRateLabel(ves, usd, models)).toBe("1$ = 500.00 VES");
+
+        const vesCompanyModels = buildModels({ currencies: [usd, eur, ves] }, 3);
+        const usdVsVes = {
+            ...usd,
+            rate: 1 / 500,
+            inverse_rate: 500,
+        };
+        const eurVsVes = {
+            ...eur,
+            rate: 1 / 900,
+            inverse_rate: 900,
+        };
+        expect(formatOrderCurrencyRateLabel(ves, usdVsVes, vesCompanyModels)).toBe(
+            "1$ = 500.00 VES"
+        );
+        expect(formatOrderCurrencyRateLabel(ves, eurVsVes, vesCompanyModels)).toBe(
+            "1€ = 900.00 VES"
+        );
+
         const labels = getConfiguredPaymentCurrencyRateLabels(
             [
                 { id: 1, payment_currency_id: usd },
@@ -177,6 +197,6 @@ describe("currency_pos utils", () => {
             models,
             { allow_multi_currency_payment: true }
         );
-        expect(labels).toEqual(["1$ = 500.00 VES", "1$ = 0.96 €"]);
+        expect(labels).toEqual(["1$ = 500.00 VES", "1€ = 1.04 $"]);
     });
 });

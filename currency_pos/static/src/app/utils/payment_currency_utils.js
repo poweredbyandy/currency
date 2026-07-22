@@ -103,21 +103,38 @@ export function formatPaymentCurrencyAmount(amount, currency) {
 }
 
 /**
- * Build "1$ = 500 VES" style label for one unit of order currency in a foreign currency.
+ * Build a rate label always using the stronger currency as the unit:
+ * e.g. "1$ = 732.00 Bs" or "1€ = 900.00 Bs" (never "1 Bs = 0.001 $").
  */
-export function formatOrderCurrencyRateLabel(orderCurrency, foreignCurrency, models) {
-    const order = getCurrencyRecord(models, orderCurrency);
-    const foreign = getCurrencyRecord(models, foreignCurrency);
-    if (!order || !foreign || order.id === foreign.id) {
+export function formatMajorExchangeRateLabel(currencyA, currencyB, models) {
+    const left = getCurrencyRecord(models, currencyA);
+    const right = getCurrencyRecord(models, currencyB);
+    if (!left || !right || left.id === right.id) {
         return "";
     }
-    const rate = getExchangeRate(order, foreign, models);
-    const orderSymbol = order.symbol || order.name || "";
-    const foreignSymbol = foreign.symbol || foreign.name || "";
-    const formattedRate = formatFloat(rate, {
-        digits: [true, Math.max(foreign.decimal_places ?? 2, 2)],
+    const rightPerLeft = getExchangeRate(left, right, models);
+    if (!rightPerLeft || rightPerLeft <= 0) {
+        return "";
+    }
+    if (rightPerLeft >= 1) {
+        const leftSymbol = left.symbol || left.name || "";
+        const rightSymbol = right.symbol || right.name || "";
+        const formattedRate = formatFloat(rightPerLeft, {
+            digits: [true, Math.max(right.decimal_places ?? 2, 2)],
+        });
+        return `1${leftSymbol} = ${formattedRate} ${rightSymbol}`;
+    }
+    const leftPerRight = 1 / rightPerLeft;
+    const rightSymbol = right.symbol || right.name || "";
+    const leftSymbol = left.symbol || left.name || "";
+    const formattedRate = formatFloat(leftPerRight, {
+        digits: [true, Math.max(left.decimal_places ?? 2, 2)],
     });
-    return `1${orderSymbol} = ${formattedRate} ${foreignSymbol}`;
+    return `1${rightSymbol} = ${formattedRate} ${leftSymbol}`;
+}
+
+export function formatOrderCurrencyRateLabel(orderCurrency, foreignCurrency, models) {
+    return formatMajorExchangeRateLabel(orderCurrency, foreignCurrency, models);
 }
 
 export function getConfiguredPaymentCurrencyRateLabels(
