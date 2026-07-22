@@ -5,41 +5,30 @@ import { makeAwaitable } from "@point_of_sale/app/store/make_awaitable_dialog";
 import { _t } from "@web/core/l10n/translation";
 
 patch(ControlButtons.prototype, {
-    /**
-     * Get the current exchange currency for display
-     */
     get exchangeCurrency() {
         return this.pos.getExchangeCurrencyForDisplay();
     },
-    /**
-     * Override getPricelistList to filter out pricelists with different currencies
-     * Only show pricelists that match the POS currency
-     */
+
     getPricelistList() {
         const companyCurrencyId = this.pos.company.currency_id.id;
-        return super.getPricelistList().filter((pricelist) => pricelist.item.currency_id?.id === companyCurrencyId);
+        return super
+            .getPricelistList()
+            .filter((pricelist) => pricelist.item.currency_id?.id === companyCurrencyId);
     },
 
-    /**
-     * Get the list of available currencies for exchange selection
-     */
     getExchangeCurrencyList() {
         const currencyList = [];
-        const currentExchangeCurrency = this.exchangeCurrency;
-
-        // Add company currency first
+        const currentExchangeCurrency =
+            this.exchangeCurrency || this.pos._getDefaultPricelistCurrency();
         const companyCurrency = this.pos.company.currency_id;
         if (companyCurrency) {
             currencyList.push({
                 id: companyCurrency.id,
                 label: `${companyCurrency.name} (${companyCurrency.symbol})`,
-                isSelected: (!currentExchangeCurrency) ||
-                           (currentExchangeCurrency?.id === companyCurrency.id),
+                isSelected: currentExchangeCurrency?.id === companyCurrency.id,
                 item: companyCurrency,
             });
         }
-
-        // Add other currencies from the system
         const currencyModel = this.pos.models["res.currency"];
         if (currencyModel) {
             currencyModel.forEach((currency) => {
@@ -47,20 +36,15 @@ patch(ControlButtons.prototype, {
                     currencyList.push({
                         id: currency.id,
                         label: `${currency.name} (${currency.symbol})`,
-                        isSelected: currentExchangeCurrency &&
-                                   currentExchangeCurrency.id === currency.id,
+                        isSelected: currentExchangeCurrency?.id === currency.id,
                         item: currency,
                     });
                 }
             });
         }
-
         return currencyList;
     },
 
-    /**
-     * Handle exchange currency selection
-     */
     async clickExchangeCurrency() {
         const selectionList = this.getExchangeCurrencyList();
         const selectedCurrency = await makeAwaitable(this.dialog, SelectionPopup, {
@@ -69,8 +53,8 @@ patch(ControlButtons.prototype, {
         });
 
         if (selectedCurrency) {
-            // Update the global POS exchange currency
             this.pos.setExchangeCurrency(selectedCurrency);
+            this.props.close?.();
         }
-    }
+    },
 });

@@ -83,7 +83,9 @@ class PurchaseOrder(models.Model):
         super()._compute_tax_totals()
         for order in self:
             if order.tax_totals:
-                order.tax_totals["display_in_company_currency"] = True
+                order.tax_totals["display_in_company_currency"] = (
+                    order.currency_id != order.company_id.currency_id
+                )
 
     @api.model
     def _compute_currency_field(self, currency_id):

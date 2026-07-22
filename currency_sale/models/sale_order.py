@@ -60,7 +60,9 @@ class SaleOrder(models.Model):
         super()._compute_tax_totals()
         for move in self:
             if move.tax_totals:
-                move.tax_totals["display_in_company_currency"] = True
+                move.tax_totals["display_in_company_currency"] = (
+                    move.currency_id != move.company_id.currency_id
+                )
 
     @api.model
     def _compute_currency_field(self, currency_id):

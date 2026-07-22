@@ -5,8 +5,23 @@ import { EventBus } from "@odoo/owl";
 patch(PosStore.prototype, {
     async setup(...args) {
         await super.setup(...args);
-        this.exchange_currency_id = null;
         this.currencyEventBus = new EventBus();
+        this.exchange_currency_id = this._getDefaultPricelistCurrency();
+    },
+
+    _getCurrencyRecord(currencyLike) {
+        if (!currencyLike) {
+            return null;
+        }
+        if (typeof currencyLike === "object") {
+            return currencyLike;
+        }
+        return this.models["res.currency"]?.find((currency) => currency.id === currencyLike) || null;
+    },
+
+    _getDefaultPricelistCurrency() {
+        const pricelist = this.config?.pricelist_id;
+        return this._getCurrencyRecord(pricelist?.currency_id) || this.company?.currency_id || null;
     },
 
     setExchangeCurrency(currency) {
@@ -18,17 +33,21 @@ patch(PosStore.prototype, {
     },
 
     getExchangeCurrency() {
-        return this.exchange_currency_id || this.company?.currency_id;
+        return (
+            this.exchange_currency_id ||
+            this._getDefaultPricelistCurrency() ||
+            this.company?.currency_id
+        );
     },
 
     getExchangeCurrencyForDisplay() {
-        return this.exchange_currency_id;
+        return this.exchange_currency_id || this._getDefaultPricelistCurrency();
     },
 
     getPaymentMethodDisplayText(pm, order) {
         const baseText = super.getPaymentMethodDisplayText(pm, order);
         const currency =
-            pm.currency_pos_payment_currency_id ||
+            pm.payment_currency_id ||
             this.company?.currency_id ||
             this.currency;
         if (!currency?.name) {
