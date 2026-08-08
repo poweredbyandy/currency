@@ -94,6 +94,45 @@ class TestPosPaymentCurrency(TestPosPaymentCurrencyCommon):
         with self.assertRaises(ValidationError):
             payment.write({"payment_currency_amount": 9.0})
 
+    def test_keeps_ui_amount_when_pos_sends_both_amounts(self):
+        order = self._create_draft_order(amount_total=35615.69)
+        converted = self.env["pos.payment"]._oca_convert_amount(
+            48.31,
+            self.eur_currency,
+            self.usd_currency,
+            self.env.company,
+            fields.Date.today(),
+        )
+        ui_amount = self.usd_currency.round(converted + self.usd_currency.rounding)
+        self.assertNotEqual(ui_amount, converted)
+        payment = self.env["pos.payment"].create(
+            {
+                "pos_order_id": order.id,
+                "amount": ui_amount,
+                "payment_method_id": self.eur_bank_payment_method.id,
+                "payment_currency_id": self.eur_currency.id,
+                "payment_currency_amount": 48.31,
+            }
+        )
+        self.assertEqual(payment.amount, ui_amount)
+        self.assertEqual(payment.payment_currency_amount, 48.31)
+
+    def test_absorb_foreign_payment_rounding_on_order(self):
+        order = self._create_draft_order(amount_total=100.01)
+        payment = self.env["pos.payment"].create(
+            {
+                "pos_order_id": order.id,
+                "amount": 100.0,
+                "payment_method_id": self.eur_bank_payment_method.id,
+                "payment_currency_id": self.eur_currency.id,
+                "payment_currency_amount": 50.0,
+            }
+        )
+        order.amount_paid = payment.amount
+        order._oca_absorb_foreign_payment_rounding()
+        self.assertEqual(order.amount_paid, 100.01)
+        self.assertEqual(payment.amount, 100.01)
+
     def _create_draft_order(self, amount_total=100.0):
         self.multi_currency_config.open_ui()
         session = self.multi_currency_config.current_session_id

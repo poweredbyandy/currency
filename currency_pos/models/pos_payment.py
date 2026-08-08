@@ -186,13 +186,19 @@ class PosPayment(models.Model):
             vals["amount"] = amount
             vals["payment_currency_amount"] = amount
         elif vals.get("payment_currency_amount") not in (False, None):
-            vals["amount"] = self._oca_convert_amount(
-                vals["payment_currency_amount"],
-                payment_currency,
-                order_currency,
-                order.company_id,
-                payment_date_value,
-            )
+            ui_amount = vals.get("amount")
+            if ui_amount not in (False, None) and not float_is_zero(
+                ui_amount, precision_rounding=order_currency.rounding
+            ):
+                vals["amount"] = order_currency.round(ui_amount)
+            else:
+                vals["amount"] = self._oca_convert_amount(
+                    vals["payment_currency_amount"],
+                    payment_currency,
+                    order_currency,
+                    order.company_id,
+                    payment_date_value,
+                )
         elif vals.get("amount") not in (False, None):
             vals["payment_currency_amount"] = self._oca_convert_amount(
                 vals["amount"],
