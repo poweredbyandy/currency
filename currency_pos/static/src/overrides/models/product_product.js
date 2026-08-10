@@ -1,91 +1,115 @@
 import { ProductProduct } from "@point_of_sale/app/models/product_product";
+import { convertCurrency } from "@currency_pos/app/utils/payment_currency_utils";
 import { roundPrecision } from "@web/core/utils/numbers";
 import { patch } from "@web/core/utils/patch";
 
+function resolveCurrencyId(currencyLike) {
+    if (!currencyLike) {
+        return null;
+    }
+    if (Array.isArray(currencyLike)) {
+        return currencyLike[0];
+    }
+    if (currencyLike.id) {
+        return currencyLike.id;
+    }
+    return currencyLike;
+}
+
 patch(ProductProduct.prototype, {
-    /**
-     * Convert an amount from one currency to another using the available currency rates
-     * @param {number} amount - The amount to convert
-     * @param {Object} fromCurrency - The source currency object
-     * @param {Object} toCurrency - The target currency object
-     * @returns {number} - The converted amount
-     */
     convertCurrency(amount, fromCurrency, toCurrency) {
-        if (!amount || isNaN(amount) || !fromCurrency || !toCurrency) {
+        if (amount === null || amount === undefined || isNaN(amount)) {
             return amount || 0;
         }
-
-        if (fromCurrency.id === toCurrency.id) {
+        if (!fromCurrency || !toCurrency) {
             return amount;
         }
-
-        try {
-            const currencyRates = this.models["res.currency.rate"]?.readAll() || [];
-
-            const company = this.models['res.company']?.getFirst();
-            const companyCurrency = company?.currency_id;
-
-            if (!companyCurrency) {
-                return amount;
-            }
-
-            if (toCurrency.id === companyCurrency.id) {
-                const fromRate = currencyRates.find(rate => {
-                    const currencyId = Array.isArray(rate.currency_id) ? rate.currency_id[0] : (rate.currency_id?.id || rate.currency_id);
-                    return currencyId === fromCurrency.id;
-                });
-
-                if (fromRate) {
-                    const rateValue = fromRate.inverse_rate || (1 / fromRate.rate) || 1;
-                    const result = amount * rateValue;
-                    return result;
-                }
-            }
-
-            if (fromCurrency.id === companyCurrency.id) {
-                const toRate = currencyRates.find(rate => {
-                    const currencyId = Array.isArray(rate.currency_id) ? rate.currency_id[0] : (rate.currency_id?.id || rate.currency_id);
-                    return currencyId === toCurrency.id;
-                });
-
-                if (toRate) {
-                    const rateValue = toRate.inverse_rate || (1 / toRate.rate) || 1;
-                    const result = amount / rateValue;
-                    return result;
-                }
-            }
-
-            // For cross-currency conversion: from -> company -> to
-            const fromRate = currencyRates.find(rate => {
-                const currencyId = Array.isArray(rate.currency_id) ? rate.currency_id[0] : (rate.currency_id?.id || rate.currency_id);
-                return currencyId === fromCurrency.id;
-            });
-
-            const toRate = currencyRates.find(rate => {
-                const currencyId = Array.isArray(rate.currency_id) ? rate.currency_id[0] : (rate.currency_id?.id || rate.currency_id);
-                return currencyId === toCurrency.id;
-            });
-
-            if (fromRate && toRate) {
-                const fromRateValue = fromRate.inverse_rate || (1 / fromRate.rate) || 1;
-                const toRateValue = toRate.inverse_rate || (1 / toRate.rate) || 1;
-
-                // Convert: amount -> company currency -> target currency
-                const amountInCompany = amount * fromRateValue;
-                const finalAmount = amountInCompany / toRateValue;
-
-                return finalAmount;
-            }
-
-            return amount; // If no rates found, return original amount
-        } catch (error) {
-            console.warn("Error in convertCurrency:", error);
-            return amount; // Return original amount on error
-        }
+        return convertCurrency(amount, fromCurrency, toCurrency, this.models);
     },
 
+    _currencyPosGetCurrency(currencyLike) {
+        const currencyId = resolveCurrencyId(currencyLike);
+        if (!currencyId) {
+            return null;
+        }
+        return (
+            this.models["res.currency"]?.get?.(currencyId) ||
+            this.models["res.currency"]?.find?.((currency) => currency.id === currencyId) ||
+            null
+        );
+    },
 
-    // Override the get_price method to handle currency conversion in pricelist rules
+    _currencyPosGetPosCurrency() {
+        const posConfig = this.models["pos.config"]?.getFirst?.();
+        return this._currencyPosGetCurrency(posConfig?.currency_id);
+    },
+
+    _currencyPosGetPriceCurrencyId() {
+        return (
+            this._currencyPosPriceCurrencyId ||
+            this.raw?._currency_pos_price_currency_id ||
+            null
+        );
+    },
+
+    _currencyPosGetRawListPrice() {
+        const raw = this.currency_pos_lst_price ?? this.raw?.currency_pos_lst_price;
+        return raw === undefined ? null : raw;
+    },
+
+    _currencyPosGetRawStandardPrice() {
+        const raw =
+            this.currency_pos_standard_price ?? this.raw?.currency_pos_standard_price;
+        return raw === undefined ? null : raw;
+    },
+
+    _currencyPosResolveListPrice(list_price) {
+        if (list_price !== false && list_price !== undefined && list_price !== null) {
+            return list_price;
+        }
+        const posCurrency = this._currencyPosGetPosCurrency();
+        const productCurrency = this._currencyPosGetCurrency(this.currency_id);
+        if (!posCurrency || !productCurrency || productCurrency.id === posCurrency.id) {
+            return list_price;
+        }
+        const raw = this._currencyPosGetRawListPrice();
+        if (raw !== null) {
+            return this.convertCurrency(raw, productCurrency, posCurrency);
+        }
+        if (this._currencyPosGetPriceCurrencyId() === posCurrency.id) {
+            return list_price;
+        }
+        return this.convertCurrency(this.lst_price || 0, productCurrency, posCurrency);
+    },
+
+    _currencyPosResolveStandardPrice() {
+        const posCurrency = this._currencyPosGetPosCurrency();
+        const costCurrency =
+            this._currencyPosGetCurrency(this.cost_currency_id) ||
+            this._currencyPosGetCurrency(this.currency_id);
+        if (!posCurrency || !costCurrency || costCurrency.id === posCurrency.id) {
+            return this.standard_price;
+        }
+        const raw = this._currencyPosGetRawStandardPrice();
+        if (raw !== null) {
+            return this.convertCurrency(raw, costCurrency, posCurrency);
+        }
+        if (this._currencyPosGetPriceCurrencyId() === posCurrency.id) {
+            return this.standard_price;
+        }
+        return this.convertCurrency(this.standard_price || 0, costCurrency, posCurrency);
+    },
+
+    _currencyPosConvertRuleAmount(amount, ruleCurrency, posCurrency) {
+        if (!amount) {
+            return 0;
+        }
+        if (!ruleCurrency || !posCurrency || ruleCurrency.id === posCurrency.id) {
+            return amount;
+        }
+        return this.convertCurrency(amount, ruleCurrency, posCurrency);
+    },
+
     get_price(
         pricelist,
         quantity,
@@ -95,88 +119,81 @@ patch(ProductProduct.prototype, {
         original_line = false,
         related_lines = []
     ) {
-        // Call parent method to get base behavior
-        const result = super.get_price(...arguments);
-
-        // If no rule was found, return the base result
+        const resolvedListPrice = this._currencyPosResolveListPrice(list_price);
+        const result = super.get_price(
+            pricelist,
+            quantity,
+            price_extra,
+            recurring,
+            resolvedListPrice,
+            original_line,
+            related_lines
+        );
         const rule = this.getPricelistRule(pricelist, quantity);
         if (!rule) {
             return result;
         }
 
-        // Only override behavior for fixed price rules with different currencies
-        if (rule.compute_price === "fixed") {
-            const posConfig = this.models["pos.config"]?.getFirst();
-            const posCurrency = posConfig?.currency_id;
-            const ruleCurrency = rule.currency_id;
-
-            // Get currency ids safely
-            let ruleCurrencyId, posCurrencyId;
-            if (ruleCurrency) {
-                if (Array.isArray(ruleCurrency)) {
-                    ruleCurrencyId = ruleCurrency[0];
-                } else if (ruleCurrency.id) {
-                    ruleCurrencyId = ruleCurrency.id;
-                } else {
-                    ruleCurrencyId = ruleCurrency;
-                }
-            }
-            if (posCurrency) {
-                if (Array.isArray(posCurrency)) {
-                    posCurrencyId = posCurrency[0];
-                } else if (posCurrency.id) {
-                    posCurrencyId = posCurrency.id;
-                } else {
-                    posCurrencyId = posCurrency;
-                }
-            }
-
-            if (ruleCurrencyId && posCurrencyId && ruleCurrencyId !== posCurrencyId) {
-                // Calculate base price without the fixed price rule
-                let basePrice = (list_price || this.lst_price) + (price_extra || 0);
-
-                // Apply base calculation if needed
-                if (rule.base === "pricelist") {
-                    if (rule.base_pricelist_id) {
-                        basePrice = this.get_price(rule.base_pricelist_id, quantity, 0, true, list_price);
-                    }
-                } else if (rule.base === "standard_price") {
-                    basePrice = this.standard_price;
-                }
-
-                // Apply currency conversion to the fixed price
-                // Get the full currency objects from models
-                const fromCurrencyObj = this.models["res.currency"]?.get(ruleCurrencyId);
-                const toCurrencyObj = this.models["res.currency"]?.get(posCurrencyId);
-
-                if (fromCurrencyObj && toCurrencyObj) {
-                    const convertedFixedPrice = this.convertCurrency(rule.fixed_price, fromCurrencyObj, toCurrencyObj);
-
-                    // Apply other rules (discount, surcharge, etc.) to the converted fixed price
-                    let finalPrice = convertedFixedPrice;
-
-                    if (rule.price_discount) {
-                        finalPrice -= finalPrice * (rule.price_discount / 100);
-                    }
-                    if (rule.price_round) {
-                        finalPrice = roundPrecision(finalPrice, rule.price_round);
-                    }
-                    if (rule.price_surcharge) {
-                        finalPrice += rule.price_surcharge;
-                    }
-                    if (rule.price_min_margin) {
-                        finalPrice = Math.max(finalPrice, basePrice + rule.price_min_margin);
-                    }
-                    if (rule.price_max_margin) {
-                        finalPrice = Math.min(finalPrice, basePrice + rule.price_max_margin);
-                    }
-
-                    return finalPrice;
-                }
-            }
+        const posCurrency = this._currencyPosGetPosCurrency();
+        const ruleCurrency = this._currencyPosGetCurrency(rule.currency_id);
+        if (!posCurrency || !ruleCurrency || ruleCurrency.id === posCurrency.id) {
+            return result;
         }
 
-        // For all other cases, return the parent result
-        return result;
-    }
+        if (rule.compute_price === "fixed") {
+            return this.convertCurrency(rule.fixed_price, ruleCurrency, posCurrency);
+        }
+
+        if (rule.compute_price !== "formula") {
+            return result;
+        }
+
+        let price =
+            (resolvedListPrice === false || resolvedListPrice === undefined
+                ? this.lst_price
+                : resolvedListPrice) + (price_extra || 0);
+        if (rule.base === "pricelist") {
+            if (rule.base_pricelist_id) {
+                price = this.get_price(rule.base_pricelist_id, quantity, 0, true, list_price);
+            }
+        } else if (rule.base === "standard_price") {
+            price = this._currencyPosResolveStandardPrice();
+        }
+
+        const priceLimit = price;
+        price -= price * (rule.price_discount / 100);
+        if (rule.price_round) {
+            price = roundPrecision(price, rule.price_round);
+        }
+        if (rule.price_surcharge) {
+            price += this._currencyPosConvertRuleAmount(
+                rule.price_surcharge,
+                ruleCurrency,
+                posCurrency
+            );
+        }
+        if (rule.price_min_margin) {
+            price = Math.max(
+                price,
+                priceLimit +
+                    this._currencyPosConvertRuleAmount(
+                        rule.price_min_margin,
+                        ruleCurrency,
+                        posCurrency
+                    )
+            );
+        }
+        if (rule.price_max_margin) {
+            price = Math.min(
+                price,
+                priceLimit +
+                    this._currencyPosConvertRuleAmount(
+                        rule.price_max_margin,
+                        ruleCurrency,
+                        posCurrency
+                    )
+            );
+        }
+        return price;
+    },
 });

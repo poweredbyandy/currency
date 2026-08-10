@@ -18,8 +18,10 @@
    only the primary one. Differences are posted to each cash journal's profit/loss account.
 8. In the POS, open **Actions** and use the pricelist button to switch between the
    configured lists (USD, USD BCV, etc.).
-9. On the product screen, above the order total, the POS shows the equivalent
+9. Product cards and list view show prices using the POS **Tax Display** setting
+   (tax included or excluded). Secondary amounts in other currencies use the same base.
+10. On the product screen, above the order total, the POS shows the equivalent
    totals for the other available pricelists (informational only; lines are not
    changed).
-10. Use the **Moneda** button on product and payment screens to change the display currency.
-11. Review payment details, applied rates, and audit messages from **Point of Sale > Multi-Currency Payments**.
+11. Use the **Moneda** button on product and payment screens to change the display currency.
+12. Review payment details, applied rates, and audit messages from **Point of Sale > Multi-Currency Payments**.

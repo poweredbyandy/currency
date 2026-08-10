@@ -1,6 +1,6 @@
 {
     "name": "Currency POS",
-    "version": "18.0.3.0.6",
+    "version": "18.0.3.0.11",
     "category": "Point of Sale",
     "sequence": 10,
     "summary": "Multi-currency products and payments in Point of Sale",
@@ -11,6 +11,7 @@
     "images": [],
     "depends": [
         "point_of_sale",
+        "pos_sale",
         "pos_hr",
         "mail",
         "l10n_ve_product_currency",
@@ -31,6 +32,7 @@
             "currency_pos/static/src/app/generic_components/currency_rates_widget/currency_rates_widget.js",
             "currency_pos/static/src/app/screens/product_screen/product_screen.js",
             "currency_pos/static/src/app/screens/product_screen/product_screen.xml",
+            "currency_pos/static/src/overrides/screens/product_screen/product_screen.js",
             "currency_pos/static/src/overrides/store/pos_store.js",
             "currency_pos/static/src/app/models/pos_order.js",
             "currency_pos/static/src/app/models/pos_payment.js",
@@ -55,6 +57,9 @@
             "currency_pos/static/src/app/navbar/closing_popup/closing_popup.xml",
             "currency_pos/static/src/overrides/components/product_card/product_card.js",
             "currency_pos/static/src/overrides/components/product_card/product_card.xml",
+            "currency_pos/static/src/overrides/components/product_configurator_popup/product_configurator_popup.js",
+            "currency_pos/static/src/overrides/components/product_info_popup/product_info_popup.js",
+            "currency_pos/static/src/overrides/components/product_info_popup/product_info_popup.xml",
         ],
         "web.assets_tests": [
             "currency_pos/static/tests/tours/**/*",

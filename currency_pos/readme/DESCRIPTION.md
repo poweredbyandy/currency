@@ -1,6 +1,11 @@
 Multi-currency support for Point of Sale:
 
-* Convert product prices and pricelists to the POS currency for display and sale.
+* Convert product prices and pricelists to the POS currency for display and sale,
+  including products loaded later via search, variants, or product edit.
+* Convert pricelist and supplier amounts in the product info popup to the POS
+  currency (standard Odoo leaves them in the pricelist/supplier currency).
+* Show product card and list prices with tax included or excluded according to
+  the POS **Tax Display** setting.
 * Keep all pricelists configured on the POS available in the pricelist selector,
   including those in a currency different from the company currency.
 * On the product screen, show above the order total the equivalent totals for

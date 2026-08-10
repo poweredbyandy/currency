@@ -9,9 +9,7 @@ patch(ProductCard.prototype, {
 
         try {
             const pos = this.env.services.pos;
-            const currentOrder = pos.get_order();
-            const pricelist = currentOrder?.pricelist_id || pos.config?.pricelist_id;
-            const price = this.props.product.get_price(pricelist, 1);
+            const price = pos.getProductPrice(this.props.product);
             return this.env.utils.formatCurrency(price);
         } catch (error) {
             console.warn("Error calculating product price:", error);
@@ -26,34 +24,33 @@ patch(ProductCard.prototype, {
 
         try {
             const prices = [];
-            const posCurrency = this.env.services.pos.currency;
-
             const pos = this.env.services.pos;
-            const currentOrder = pos.get_order();
-            const currentPricelist = currentOrder?.pricelist_id || pos.config?.pricelist_id;
-
-            // Get all currencies except the POS currency
-            const currencies = this.env.services.pos.models["res.currency"].readAll()
-                .filter(currency => currency.id !== posCurrency.id);
-
+            const posCurrency = pos.currency;
+            const price = pos.getProductPrice(this.props.product);
+            const currencies = pos.models["res.currency"]
+                .readAll()
+                .filter((currency) => currency.id !== posCurrency.id);
 
             for (const currency of currencies) {
                 try {
-                    // Calculate price in POS currency first
-                    const price = this.props.product.get_price(currentPricelist, 1);
-
-                    // Convert to target currency using the convertCurrency function
-                    const convertedPrice = this.props.product.convertCurrency(price, posCurrency, currency);
-
-                    // Format manually with currency symbol to ensure correct display
-                    const formattedPrice = `${currency.symbol || currency.name} ${convertedPrice.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-
+                    const convertedPrice = this.props.product.convertCurrency(
+                        price,
+                        posCurrency,
+                        currency
+                    );
+                    const formattedPrice = `${currency.symbol || currency.name} ${convertedPrice.toLocaleString(
+                        "es-ES",
+                        { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                    )}`;
                     prices.push({
                         currency: currency,
-                        price: formattedPrice
+                        price: formattedPrice,
                     });
                 } catch (error) {
-                    console.warn("Error calculating price for currency " + currency.name + ":", error);
+                    console.warn(
+                        "Error calculating price for currency " + currency.name + ":",
+                        error
+                    );
                 }
             }
 
@@ -62,5 +59,5 @@ patch(ProductCard.prototype, {
             console.warn("Error calculating prices in other currencies:", error);
             return [];
         }
-    }
+    },
 });
