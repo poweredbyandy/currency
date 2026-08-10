@@ -9,13 +9,6 @@ patch(ControlButtons.prototype, {
         return this.pos.getExchangeCurrencyForDisplay();
     },
 
-    getPricelistList() {
-        const companyCurrencyId = this.pos.company.currency_id.id;
-        return super
-            .getPricelistList()
-            .filter((pricelist) => pricelist.item.currency_id?.id === companyCurrencyId);
-    },
-
     getExchangeCurrencyList() {
         const currencyList = [];
         const currentExchangeCurrency =

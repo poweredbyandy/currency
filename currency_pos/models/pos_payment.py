@@ -59,6 +59,7 @@ class PosPayment(models.Model):
             "payment_currency_id",
             "payment_currency_amount",
             "payment_currency_rate",
+            "payment_ref_no",
         ):
             if field_name not in fields_list:
                 fields_list.append(field_name)

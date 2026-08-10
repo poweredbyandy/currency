@@ -77,4 +77,16 @@ patch(OrderWidget.prototype, {
                 this.props.taxTotals
         );
     },
+
+    getAlternatePricelistTotals() {
+        if (this.pos.mainScreen?.component?.name !== "ProductScreen") {
+            return [];
+        }
+        const order = this.pos.get_order();
+        if (!order || !this.props.taxTotals) {
+            return [];
+        }
+        return order.getAlternatePricelistTotals?.() || [];
+    },
 });
+

@@ -598,6 +598,49 @@ class PosSession(models.Model):
             "has_foreign_currency": has_foreign_currency,
         }
 
+    def _oca_aggregate_payments_amounts_by_employee(self, payments, payment_method):
+        """Build pos_hr employee breakdown in the payment method currency when needed."""
+        if not hasattr(self, "_aggregate_payments_amounts_by_employee"):
+            return []
+        if not self._oca_is_foreign_payment_method(payment_method):
+            return self._aggregate_payments_amounts_by_employee(payments)
+
+        payments_by_employee = []
+        for employee, payments_group in payments.grouped("employee_id").items():
+            amount_foreign, _currency = self._oca_amount_in_payment_method_currency(
+                payments_group,
+                payment_method,
+            )
+            payments_by_employee.append(
+                {
+                    "id": employee.id if employee else "others",
+                    "name": employee.name if employee else _("Others"),
+                    "amount": amount_foreign,
+                }
+            )
+        return sorted(
+            payments_by_employee,
+            key=lambda item: (item["id"] == "others", item["name"]),
+        )
+
+    def _oca_aggregate_moves_by_employee(self, payment_method):
+        if not hasattr(self, "_aggregate_moves_by_employee"):
+            return []
+        journal = payment_method.journal_id
+        statement_lines = self.sudo().statement_line_ids.filtered(
+            lambda line: line.journal_id == journal
+        )
+        moves_per_employee = {}
+        for employee, moves in statement_lines.grouped("employee_id").items():
+            if not employee:
+                continue
+            moves_per_employee[employee.id] = {
+                "id": employee.id,
+                "name": employee.name,
+                "amount": sum(moves.mapped("amount")),
+            }
+        return sorted(moves_per_employee.values(), key=lambda item: -item["amount"])
+
     def get_closing_control_data(self):
         if not self.env.user.has_group("point_of_sale.group_pos_user"):
             raise AccessError(
@@ -611,10 +654,21 @@ class PosSession(models.Model):
             lambda payment: payment.payment_method_id.type != "pay_later"
         )
         cash_methods = self._oca_cash_payment_methods()
-        cash_details = [
-            self._oca_build_cash_box_closing_details(payment_method, payments)
-            for payment_method in cash_methods
-        ]
+        cash_details = []
+        for payment_method in cash_methods:
+            details = self._oca_build_cash_box_closing_details(payment_method, payments)
+            method_payments = payments.filtered(
+                lambda payment, pm=payment_method: payment.payment_method_id == pm
+                and not payment.is_change
+            )
+            details["amount_per_employee"] = self._oca_aggregate_payments_amounts_by_employee(
+                method_payments,
+                payment_method,
+            )
+            details["moves_per_employee"] = self._oca_aggregate_moves_by_employee(
+                payment_method
+            )
+            cash_details.append(details)
         data["cash_details"] = cash_details
         if cash_details:
             data["default_cash_details"] = cash_details[0]

@@ -2,6 +2,7 @@ from . import product
 from . import product_pricelist
 from . import res_currency_rate
 from . import res_currency
+from . import res_config_settings
 from . import pos_config
 from . import pos_order
 from . import pos_payment

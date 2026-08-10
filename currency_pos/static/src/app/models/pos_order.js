@@ -1,6 +1,8 @@
 import { PosOrder } from "@point_of_sale/app/models/pos_order";
 import { patch } from "@web/core/utils/patch";
 import { formatCurrency } from "@point_of_sale/app/models/utils/currency";
+import { accountTaxHelpers } from "@account/helpers/account_tax";
+import { lt } from "@point_of_sale/utils";
 import { toRaw } from "@odoo/owl";
 import {
     convertCurrency,
@@ -85,6 +87,82 @@ patch(PosOrder.prototype, {
 
     getForeignCurrencyRemaining(paymentCurrency) {
         return convertOrderRemainingToForeign(this, paymentCurrency, this.models);
+    },
+
+    /**
+     * Totals of the current lines as if each available pricelist (except the
+     * active one) were applied. Display-only: does not change order lines.
+     */
+    getAlternatePricelistTotals() {
+        if (!this.config?.use_pricelist || !this.lines?.length) {
+            return [];
+        }
+        const available = this.config.available_pricelist_ids || [];
+        const currentId = this.pricelist_id?.id;
+        const others = available.filter((pricelist) => pricelist.id !== currentId);
+        if (!others.length) {
+            return [];
+        }
+
+        const currency = this.config.currency_id;
+        const company = this.company;
+        const documentSign =
+            !this.lines.every((line) => lt(line.qty, 0, { decimals: currency.decimal_places }))
+                ? 1
+                : -1;
+
+        return others.map((pricelist) => {
+            const baseLines = this.lines.map((line) => {
+                let priceUnit = line.get_unit_price();
+                if (
+                    line.price_type === "original" &&
+                    line.product_id &&
+                    !line.combo_line_ids?.length
+                ) {
+                    priceUnit = line.product_id.get_price(
+                        pricelist,
+                        line.get_quantity(),
+                        line.get_price_extra()
+                    );
+                }
+                return accountTaxHelpers.prepare_base_line_for_taxes_computation(
+                    line,
+                    line.prepareBaseLineForTaxesComputationExtraValues({
+                        quantity: documentSign * line.qty,
+                        price_unit: priceUnit,
+                    })
+                );
+            });
+            accountTaxHelpers.add_tax_details_in_base_lines(baseLines, company);
+            accountTaxHelpers.round_base_lines_tax_details(baseLines, company);
+            const taxTotals = accountTaxHelpers.get_tax_totals_summary(
+                baseLines,
+                currency,
+                company,
+                { cash_rounding: null }
+            );
+            const total = documentSign * (taxTotals.total_amount_currency || 0);
+            const displayCurrency = pricelist.currency_id || currency;
+            let displayTotal = total;
+            if (
+                displayCurrency?.id &&
+                currency?.id &&
+                displayCurrency.id !== currency.id &&
+                this.lines[0]?.product_id?.convertCurrency
+            ) {
+                displayTotal = this.lines[0].product_id.convertCurrency(
+                    total,
+                    currency,
+                    displayCurrency
+                );
+            }
+            return {
+                id: pricelist.id,
+                name: pricelist.display_name || pricelist.name,
+                total: displayTotal,
+                currencyId: displayCurrency.id,
+            };
+        });
     },
 
     get_due() {

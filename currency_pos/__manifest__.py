@@ -1,6 +1,6 @@
 {
     "name": "Currency POS",
-    "version": "18.0.3.0.1",
+    "version": "18.0.3.0.5",
     "category": "Point of Sale",
     "sequence": 10,
     "summary": "Multi-currency products and payments in Point of Sale",
@@ -11,6 +11,7 @@
     "images": [],
     "depends": [
         "point_of_sale",
+        "pos_hr",
         "mail",
         "l10n_ve_product_currency",
     ],
