@@ -1,7 +1,11 @@
 import { ClosePosPopup } from "@point_of_sale/app/navbar/closing_popup/closing_popup";
 import { patch } from "@web/core/utils/patch";
 import { formatFloat } from "@web/core/utils/numbers";
-import { convertCurrency } from "../../utils/payment_currency_utils";
+import {
+    convertCurrency,
+    getCurrencyRecord,
+    getPaymentMethodCurrency,
+} from "../../utils/payment_currency_utils";
 import { MoneyDetailsPopup } from "@point_of_sale/app/utils/money_details_popup/money_details_popup";
 import { _t } from "@web/core/l10n/translation";
 import { parseFloat } from "@web/views/fields/parsers";
@@ -42,18 +46,15 @@ patch(ClosePosPopup.prototype, {
         if (!paymentMethodData) {
             return null;
         }
-        const paymentCurrency = this.pos.models["res.currency"].get(
+        const fromDetails = getCurrencyRecord(
+            this.pos.models,
             paymentMethodData.payment_currency_id
         );
-        if (paymentCurrency) {
-            return paymentCurrency;
+        if (fromDetails) {
+            return fromDetails;
         }
         const paymentMethod = this.pos.models["pos.payment.method"].get(paymentMethodData.id);
-        const methodCurrency = paymentMethod?.payment_currency_id;
-        if (typeof methodCurrency === "object") {
-            return methodCurrency;
-        }
-        return this.pos.models["res.currency"].get(methodCurrency);
+        return getPaymentMethodCurrency(paymentMethod, this.pos.models, null);
     },
 
     getCurrencySymbol(paymentMethodData) {

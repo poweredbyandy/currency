@@ -5,6 +5,7 @@ import { MoneyDetailsPopup } from "@point_of_sale/app/utils/money_details_popup/
 import { _t } from "@web/core/l10n/translation";
 import { RPCError } from "@web/core/network/rpc";
 import { buildOpeningCashByMethod } from "@currency_pos/app/utils/opening_cash_utils";
+import { getPaymentMethodCurrency } from "@currency_pos/app/utils/payment_currency_utils";
 
 patch(OpeningControlPopup.prototype, {
     setup() {
@@ -33,17 +34,7 @@ patch(OpeningControlPopup.prototype, {
     },
 
     _getCashMethodCurrency(paymentMethod) {
-        if (!paymentMethod) {
-            return this.pos.currency;
-        }
-        const methodCurrency = paymentMethod.payment_currency_id;
-        if (methodCurrency && typeof methodCurrency === "object") {
-            return methodCurrency;
-        }
-        if (methodCurrency) {
-            return this.pos.models["res.currency"].get(methodCurrency) || this.pos.currency;
-        }
-        return this.pos.currency;
+        return getPaymentMethodCurrency(paymentMethod, this.pos.models, this.pos.currency);
     },
 
     formatOpeningCashLabel(paymentMethod) {

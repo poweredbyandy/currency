@@ -2,6 +2,8 @@ import { PosStore } from "@point_of_sale/app/store/pos_store";
 import { patch } from "@web/core/utils/patch";
 import { EventBus } from "@odoo/owl";
 
+import { getPaymentMethodCurrency } from "@currency_pos/app/utils/payment_currency_utils";
+
 patch(PosStore.prototype, {
     async setup(...args) {
         await super.setup(...args);
@@ -47,7 +49,7 @@ patch(PosStore.prototype, {
     getPaymentMethodDisplayText(pm, order) {
         const baseText = super.getPaymentMethodDisplayText(pm, order);
         const currency =
-            pm.payment_currency_id ||
+            getPaymentMethodCurrency(pm, this.models, null) ||
             this.company?.currency_id ||
             this.currency;
         if (!currency?.name) {

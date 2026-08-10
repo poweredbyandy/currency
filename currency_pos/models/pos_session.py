@@ -17,6 +17,11 @@ class PosSession(models.Model):
         models_list = super()._load_pos_data_models(config_id)
         if "res.currency.rate" not in models_list:
             models_list.append("res.currency.rate")
+        # Load currencies before payment methods so many2one links resolve on first pass.
+        if "res.currency" in models_list and "pos.payment.method" in models_list:
+            models_list = [model for model in models_list if model != "res.currency"]
+            method_index = models_list.index("pos.payment.method")
+            models_list.insert(method_index, "res.currency")
         return models_list
 
     def _oca_cash_payment_methods(self):

@@ -3,14 +3,51 @@
  */
 import { formatFloat } from "@web/core/utils/numbers";
 
-function getCurrencyRecord(models, currencyLike) {
-    if (!currencyLike) {
+export function getCurrencyRecord(models, currencyLike) {
+    if (!currencyLike || !models) {
         return null;
     }
     if (typeof currencyLike === "object") {
-        return currencyLike;
+        if (Array.isArray(currencyLike)) {
+            currencyLike = currencyLike[0];
+        } else if (currencyLike.id) {
+            return currencyLike;
+        } else {
+            return null;
+        }
     }
-    return models["res.currency"].find((currency) => currency.id === currencyLike) || null;
+    const currencyModel = models["res.currency"];
+    if (!currencyModel) {
+        return null;
+    }
+    if (currencyModel.get) {
+        const byGet = currencyModel.get(currencyLike);
+        if (byGet) {
+            return byGet;
+        }
+    }
+    return currencyModel.find?.((currency) => currency.id === currencyLike) || null;
+}
+
+/**
+ * Resolve the currency of a POS payment method (relation, raw id, or fallback).
+ */
+export function getPaymentMethodCurrency(paymentMethod, models, fallbackCurrency = null) {
+    if (!paymentMethod) {
+        return fallbackCurrency;
+    }
+    const modelStore = models || paymentMethod.models;
+    const candidates = [
+        paymentMethod.payment_currency_id,
+        paymentMethod.raw?.payment_currency_id,
+    ];
+    for (const currencyLike of candidates) {
+        const currency = getCurrencyRecord(modelStore, currencyLike);
+        if (currency) {
+            return currency;
+        }
+    }
+    return fallbackCurrency;
 }
 
 function getCompanyCurrency(models) {
