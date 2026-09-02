@@ -8,5 +8,5 @@ class AccountPaymentRegister(models.TransientModel):
     def _compute_payment_difference_handling(self):
         super()._compute_payment_difference_handling()
         for wizard in self:
-            if wizard.can_edit_wizard:
+            if wizard.can_edit_wizard and not wizard.early_payment_discount_mode:
                 wizard.payment_difference_handling = "open"
